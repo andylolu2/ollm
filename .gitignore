@@ -1,0 +1,41 @@
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# pyenv
+.python-version
+
+# vscode
+.vscode/
+
+# outputs
+out
+
+# secrets
+.env
+
+# Core latex build outputs
+report/build
+report/paper/media
+report/paper/build
+*.zip
+*.log
+
+# wandb
+wandb/
+
+# corenlp
+corenlp/
+
+# report
+*.pdf
+*.aux
+*.gz
+
+# pixi environments
+.pixi
+*.egg-info
+
+# mypy
+.mypy_cache
