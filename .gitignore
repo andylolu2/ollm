@@ -39,3 +39,7 @@ corenlp/
 
 # mypy
 .mypy_cache
+
+# slurm specifics
+entrypoint/slurm
+justfile
