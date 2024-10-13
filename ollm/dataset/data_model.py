@@ -67,9 +67,14 @@ def save_graph(
     if clean_up:
         G = clean_up_graph(G)
 
-    logging.info("Saving graph to %s", save_file)
+    logging.info(
+        "Saving graph with %d nodes and %d edges to %s",
+        nx.number_of_nodes(G),
+        nx.number_of_edges(G),
+        save_file,
+    )
     with open(save_file, "w") as f:
-        json.dump(nx.node_link_data(G), f)
+        json.dump(nx.node_link_data(G, edges="links"), f)
 
 
 def load_graph(save_file: Path | str, depth: int | None = None) -> nx.DiGraph:
@@ -85,7 +90,7 @@ def load_graph(save_file: Path | str, depth: int | None = None) -> nx.DiGraph:
 
     logging.info("Loading graph from %s", save_file)
     with open(save_file, "r") as f:
-        G = nx.node_link_graph(json.load(f))
+        G = nx.node_link_graph(json.load(f), edges="links")
 
     assert "root" in G.graph
     if depth is not None and depth > 0:

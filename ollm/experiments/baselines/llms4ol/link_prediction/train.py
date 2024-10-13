@@ -1,12 +1,12 @@
 import random
 from pathlib import Path
 
+import evaluate
 import networkx as nx
 import numpy as np
 import torch
-import wandb
 from absl import app, flags
-from datasets import Dataset, load_metric
+from datasets import Dataset
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -15,6 +15,7 @@ from transformers import (
     TrainingArguments,
 )
 
+import wandb
 from ollm.dataset import data_model
 from ollm.utils import setup_logging
 
@@ -35,10 +36,10 @@ def main(_):
     output_dir = Path(FLAGS.output_dir)
     setup_logging(output_dir, "train", flags=FLAGS)
 
-    accuracy = load_metric("accuracy", trust_remote_code=True)
-    precision = load_metric("precision", trust_remote_code=True)
-    recall = load_metric("recall", trust_remote_code=True)
-    f1 = load_metric("f1", trust_remote_code=True)
+    accuracy = evaluate.load("accuracy")
+    precision = evaluate.load("precision")
+    recall = evaluate.load("recall")
+    f1 = evaluate.load("f1")
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred

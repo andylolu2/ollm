@@ -1,17 +1,8 @@
 from dataclasses import dataclass
 from functools import cache
-from itertools import product
 
 import networkx as nx
 import numpy as np
-from absl import logging
-
-from ollm.eval.graph_metrics import (
-    edge_prec_recall_f1,
-    embed_graph,
-    graph_similarity,
-    node_prec_recall_f1,
-)
 
 
 @dataclass
@@ -99,36 +90,3 @@ def post_process(G: nx.DiGraph, hp: PostProcessHP) -> tuple[nx.DiGraph, int]:
     G = nx.edge_subgraph(G, G.edges - edges_to_remove)
 
     return G, len(edges_to_remove)
-
-
-def hp_search(G: nx.DiGraph, G_true: nx.DiGraph, metric: str = "edge_f1", **kwargs):
-    hps = []
-    keys = list(kwargs.keys())
-    for values in product(*kwargs.values()):
-        hps.append(PostProcessHP(**dict(zip(keys, values))))
-    assert len(hps) > 0, "No hyperparameters to search over"
-
-    if metric == "edge_f1":
-        score_fn = lambda G_pred, G_true: edge_prec_recall_f1(G_pred, G_true)[2]
-    elif metric == "node_f1":
-        score_fn = lambda G_pred, G_true: node_prec_recall_f1(G_pred, G_true)[2]
-    elif metric.startswith("graph_similarity"):
-        n_iters = int(metric.split("_")[-1])
-        G = embed_graph(G)  # type: ignore
-        G_true = embed_graph(G_true)  # type: ignore
-        score_fn = lambda G_pred, G_true: graph_similarity(
-            G_pred, G_true, direction="undirected", n_iters=n_iters
-        )
-    else:
-        raise ValueError(f"Unknown metric: {metric}")
-
-    best = (None, None, -float("inf"))  # best hp, best G, best score
-    for hp in hps:
-        G_pred = post_process(G, hp)
-        score = score_fn(G_pred, G_true)
-        if score is None:
-            continue
-        logging.info("Score: %.5f, HP: %s", score, hp)
-        if score > best[2]:
-            best = (hp, G_pred, score)
-    return best

@@ -1,8 +1,9 @@
 import torch
-import wandb
 from absl import logging
 from transformers import TrainerCallback, TrainingArguments
 from transformers.trainer_callback import TrainerControl, TrainerState
+
+import wandb
 
 
 class GenerateSamplesCallback(TrainerCallback):
@@ -74,4 +75,4 @@ class GenerateSamplesCallback(TrainerCallback):
                 columns=list(samples[0].keys()),
                 data=[list(s.values()) for s in samples],
             )
-            wandb.log({"eval/samples": table}, step=state.global_step + 1)
+            wandb.log({"eval/samples": table}, step=state.global_step)

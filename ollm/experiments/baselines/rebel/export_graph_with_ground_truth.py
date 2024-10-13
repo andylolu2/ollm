@@ -7,9 +7,9 @@ import numpy as np
 import scipy.sparse as sp
 from absl import app, flags, logging
 
-from llm_ol.dataset import data_model
-from llm_ol.experiments.hearst.svd_ppmi import SvdPpmiModel
-from llm_ol.utils import setup_logging
+from ollm.dataset import data_model
+from ollm.experiments.baselines.hearst.svd_ppmi import SvdPpmiModel
+from ollm.utils import setup_logging
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string(
@@ -34,7 +34,7 @@ def parse_triplets(triplets: list[dict[str, str]]) -> set[tuple[str, str]]:
         match triplet:
             case {"head": head, "type": relation, "tail": tail}:
                 if relation in FLAGS.relations:
-                    extracted.add((tail, head))
+                    extracted.add((head, tail))
             case _:
                 logging.error("Invalid triplet: %s", triplet)
     return extracted

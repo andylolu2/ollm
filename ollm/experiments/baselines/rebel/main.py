@@ -7,7 +7,7 @@ import torch
 from absl import app, flags, logging
 from transformers import AutoTokenizer, BartForConditionalGeneration
 
-from llm_ol.utils import batch, setup_logging, textpbar
+from ollm.utils import batch, setup_logging, textpbar
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("test_dataset", None, "Path to the test dataset", required=True)
@@ -91,10 +91,7 @@ def main(_):
 
     tokenizer = AutoTokenizer.from_pretrained(model_id, padding_side="left")
     model = BartForConditionalGeneration.from_pretrained(
-        model_id,
-        torch_dtype=torch.float16,
-        attn_implementation="flash_attention_2",
-        device_map="auto",
+        model_id, torch_dtype=torch.bfloat16, device_map="auto"
     )
     pbar = textpbar(len(test_pages))
 
@@ -108,7 +105,7 @@ def main(_):
             truncation=True,
         ).to(model.device)
         generated_tokens = model.generate(
-            **inputs,
+            **inputs,  # type: ignore
             length_penalty=0.0,
             max_length=256,
             min_length=12,

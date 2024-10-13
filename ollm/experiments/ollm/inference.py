@@ -1,20 +1,19 @@
 """This script is idempotent."""
 
 import json
-import random
 from pathlib import Path
 
+import torch
 from absl import app, flags, logging
 from vllm import LLM, SamplingParams
 
-from ollm.experiments.llm.templates import PROMPT_TEMPLATE
+from ollm.experiments.templates import PROMPT_TEMPLATE
 from ollm.utils import batch, setup_logging, textpbar
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("test_dataset", None, "Path to the test dataset", required=True)
 flags.DEFINE_string("output_dir", None, "Path to the output directory", required=True)
 flags.DEFINE_string("model", None, "Model to use for inference.", required=True)
-flags.DEFINE_integer("size", -1, "Number of samples to generate.")
 
 
 def main(_):
@@ -44,15 +43,19 @@ def main(_):
             for sample in test_pages
             if sample["id"] not in computed
         ]
-    if FLAGS.size > 0:
-        logging.info("Sampling %d/%d pages", FLAGS.size, len(test_pages))
-        random.seed(0)
-        random.shuffle(test_pages)
-        test_pages = test_pages[: FLAGS.size]
 
     logging.info("Computing responses for %d pages", len(test_pages))
 
-    llm = LLM(model=FLAGS.model, max_num_seqs=512, max_paddings=512)
+    llm = LLM(
+        model=FLAGS.model,
+        tensor_parallel_size=torch.cuda.device_count(),
+        max_num_batched_tokens=4096,
+        max_model_len=8192,
+        max_seq_len_to_capture=4096,
+        max_num_seqs=512,
+        block_size=32,
+        enable_chunked_prefill=True,
+    )
     tokenizer = llm.get_tokenizer()
     pbar = textpbar(len(test_pages))
 

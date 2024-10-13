@@ -17,10 +17,10 @@ exit 1
 fi
 
 dataset=$1
-exp_dir=out/experiments/baselines/hearst/$dataset/eval
+exp_dir=out/experiments/baselines/rebel/$dataset/eval
 
-python ollm/experiments/baselines/hearst/export_graph_with_ground_truth.py \
-    --extraction_dir $exp_dir/extractions \
+python ollm/experiments/baselines/rebel/export_graph_with_ground_truth.py \
+    --input_file $exp_dir/categorised_pages.jsonl \
     --graph_true out/data/$dataset/final/eval_graph.json \
     --k 5 \
     --k 10 \

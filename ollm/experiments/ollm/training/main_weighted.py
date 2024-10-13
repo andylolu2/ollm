@@ -294,8 +294,6 @@ def main(_):
         )
 
     resume_from_checkpoint = get_last_checkpoint(config.output_dir) is not None
-    if not resume_from_checkpoint:
-        trainer.evaluate()
     trainer.train(resume_from_checkpoint=resume_from_checkpoint)  # type: ignore
 
     # Save the final model

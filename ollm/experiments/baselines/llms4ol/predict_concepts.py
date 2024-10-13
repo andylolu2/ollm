@@ -4,10 +4,11 @@ import json
 import random
 from pathlib import Path
 
+import torch
 from absl import app, flags, logging
 from vllm import LLM, SamplingParams
 
-from ollm.experiments.llm.templates import PRED_CONCEPT_TEMPLATE
+from ollm.experiments.templates import PRED_CONCEPT_TEMPLATE
 from ollm.utils import batch, setup_logging, textpbar
 
 FLAGS = flags.FLAGS
@@ -48,11 +49,13 @@ def main(_):
 
     llm = LLM(
         model="mistralai/Mistral-7B-Instruct-v0.2",
-        download_dir="out/models",
+        tensor_parallel_size=torch.cuda.device_count(),
+        max_num_batched_tokens=4096,
+        max_model_len=8192,
+        max_seq_len_to_capture=4096,
         max_num_seqs=512,
-        max_paddings=512,
-        max_model_len=4096,
-        seed=FLAGS.seed,
+        block_size=32,
+        enable_chunked_prefill=True,
     )
     tokenizer = llm.get_tokenizer()
     pbar = textpbar(len(test_pages))
@@ -79,6 +82,7 @@ def main(_):
                 top_p=0.9,
                 max_tokens=256,
                 stop=["\n\n"],
+                seed=FLAGS.seed,
             ),
         )
         for page, out in zip(pages, outputs):

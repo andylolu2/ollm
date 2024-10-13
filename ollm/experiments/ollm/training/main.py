@@ -155,7 +155,6 @@ def main(_):
             config=config.to_dict(),
             save_code=True,
         )
-    trainer.evaluate()
     trainer.train()  # type: ignore
 
     # Save the final model

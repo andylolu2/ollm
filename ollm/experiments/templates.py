@@ -50,10 +50,10 @@ Title: {{ title }}
 ### END ARTICLE ###
 """
 COT_ROUND_ONE_TEMPLATE = load_template(_COT_ROUND_ONE_TEMPLATE)
-_COT_ROUND_TWO_TEMPLATE = """Your task now is to assign this article to suitable category hierarchy. \
+_COT_ROUND_TWO_TEMPLATE = """Your task now is to assign this article to a suitable category hierarchy. \
 A category is typically represented by a word or a short phrase, representing broader topics/concepts that the article is about. \
 A category hierarchy is represented by a collection of paths from the generic root category "Main topic classifications" \
-to a specific category suitable for the article. The topics titles should become more and more specific as you move from the root to the leaf. \
+to a specific category suitable for the article. The topic titles should become more and more specific as you move from the root to the leaf. \
 
 You must answer in the format of:
 Main topic classifications -> Broad topic 1 -> Subtopic 1 -> ... -> Most specific topic 1

@@ -1,4 +1,6 @@
+import graph_tool.all as gt
 import networkx as nx
+import numpy as np
 import torch
 from scipy.optimize import linear_sum_assignment
 from torch_geometric.data import Batch
@@ -14,6 +16,7 @@ from ollm.utils import (
     load_embedding_model,
     textqdm,
 )
+from ollm.utils.nx_to_gt import nx_to_gt
 
 
 def embed_graph(
@@ -38,7 +41,7 @@ def safe_f1(precision, recall):
 
 
 @torch.no_grad()
-def graph_fuzzy_match(
+def graph_precision_recall_f1(
     G1: nx.DiGraph,
     G2: nx.DiGraph,
     n_iters: int = 3,
@@ -104,7 +107,7 @@ def graph_fuzzy_match(
 
     # soft precision, recall, f1
     row_ind, col_ind = linear_sum_assignment(sim, maximize=True)
-    score = sim[row_ind, col_ind].sum()
+    score = sim[row_ind, col_ind].sum().item()
     precision = score / len(G1)
     recall = score / len(G2)
     f1 = safe_f1(precision, recall)
@@ -113,79 +116,7 @@ def graph_fuzzy_match(
 
 
 @torch.no_grad()
-def graph_similarity(
-    G1: nx.DiGraph,
-    G2: nx.DiGraph,
-    n_iters: int = 3,
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-    direction: str = "forward",
-) -> float | None:
-    if len(G1) == 0 or len(G2) == 0:
-        return 0
-
-    # Skip computation if too slow. Time complexity is O(n^2 m)
-    n, m = min(len(G1), len(G2)), max(len(G1), len(G2))
-    if (n**2 * m) > 20000**3:
-        return None
-
-    def nx_to_vec(G: nx.Graph, n_iters) -> torch.Tensor:
-        """Compute a graph embedding of shape (n_nodes embed_dim).
-
-        Uses a GCN with identity weights to compute the embedding.
-        """
-
-        # Delete all node and edge attributes except for the embedding
-        # Otherwise PyG might complain "Not all nodes/edges contain the same attributes"
-        G = G.copy()
-        for _, _, d in G.edges(data=True):
-            d.clear()
-        for _, d in G.nodes(data=True):
-            for k in list(d.keys()):
-                if k != "embed":
-                    del d[k]
-        pyg_G = from_networkx(G, group_node_attrs=["embed"])
-
-        embed_dim = pyg_G.x.shape[1]
-        conv = SGConv(embed_dim, embed_dim, K=n_iters, bias=False).to(device)
-        conv.lin.weight.data = torch.eye(embed_dim, device=conv.lin.weight.device)
-
-        pyg_batch = Batch.from_data_list([pyg_G])
-        x, edge_index = pyg_batch.x, pyg_batch.edge_index  # type: ignore
-        x, edge_index = x.to(device), edge_index.to(device)
-        x = conv(x, edge_index)
-
-        return x
-
-    if "embed" not in G1.nodes[next(iter(G1.nodes))]:
-        G1 = embed_graph(G1, embedding_model=embedding_model)
-    if "embed" not in G2.nodes[next(iter(G2.nodes))]:
-        G2 = embed_graph(G2, embedding_model=embedding_model)
-
-    def sim(G1, G2) -> float:
-        # Compute embeddings
-        x1 = nx_to_vec(G1, n_iters)
-        x2 = nx_to_vec(G2, n_iters)
-
-        # Cosine similarity matrix
-        sim = cosine_sim(x1, x2, dim=-1).cpu().numpy()
-
-        return (sim.amax(0).mean() + sim.amax(1).mean()).item() / 2
-
-    if direction == "forward":
-        return sim(G1, G2)
-    elif direction == "reverse":
-        return sim(G1.reverse(copy=False), G2.reverse(copy=False))
-    elif direction == "undirected":
-        return sim(
-            G1.to_undirected(as_view=True).to_directed(as_view=True),
-            G2.to_undirected(as_view=True).to_directed(as_view=True),
-        )
-    else:
-        raise ValueError(f"Invalid direction {direction}")
-
-
-@torch.no_grad()
-def edge_similarity(
+def fuzzy_and_continuous_precision_recall_f1(
     G1: nx.DiGraph,
     G2: nx.DiGraph,
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
@@ -206,10 +137,8 @@ def edge_similarity(
     if (n**2 * m) > 20000**3 and skip_if_too_slow:
         return None, None, None, None, None, None
 
-    if "embed" not in G1.nodes[next(iter(G1.nodes))]:
-        G1 = embed_graph(G1, embedding_model=embedding_model)
-    if "embed" not in G2.nodes[next(iter(G2.nodes))]:
-        G2 = embed_graph(G2, embedding_model=embedding_model)
+    G1 = embed_graph(G1, embedding_model=embedding_model)
+    G2 = embed_graph(G2, embedding_model=embedding_model)
 
     def embed_edges(G, edges):
         u_emb = torch.stack([G.nodes[u]["embed"] for u, _ in edges])
@@ -237,41 +166,33 @@ def edge_similarity(
     sims_u = torch.cat(sims_u, dim=0)
     sims_v = torch.cat(sims_v, dim=0)
 
-    # Soft precision, recall, f1
+    # Continuous precision, recall, f1
     sims = torch.minimum(sims_u, sims_v).cpu().numpy()
     row_ind, col_ind = linear_sum_assignment(sims, maximize=True)
-    score = sims[row_ind, col_ind].sum()
-    precision = score / s1
-    recall = score / s2
-    f1 = safe_f1(precision, recall)
+    score = sims[row_ind, col_ind].sum().item()
+    precision_continuous = score / s1
+    recall_continuous = score / s2
+    f1_continuous = safe_f1(precision_continuous, recall_continuous)
 
-    # Hard precision, recall, f1
+    # Fuzzy precision, recall, f1
     hard_sims = (
         ((sims_u >= match_threshold) & (sims_v >= match_threshold)).cpu().numpy()
     )
-    precision_hard = hard_sims.any(axis=1).sum() / s1
-    recall_hard = hard_sims.any(axis=0).sum() / s2
-    f1_hard = safe_f1(precision_hard, recall_hard)
+    precision_fuzzy = hard_sims.any(axis=1).sum().item() / s1
+    recall_fuzzy = hard_sims.any(axis=0).sum().item() / s2
+    f1_fuzzy = safe_f1(precision_fuzzy, recall_fuzzy)
 
-    return precision, recall, f1, precision_hard, recall_hard, f1_hard
-
-
-def node_prec_recall_f1(G_pred: nx.Graph, G_true: nx.Graph):
-    if len(G_pred) == 0 or len(G_true) == 0:
-        return 0, 0, 0
-
-    def title(G, n):
-        return G.nodes[n]["title"]
-
-    nodes_G = {title(G_pred, n) for n in G_pred.nodes}
-    nodes_G_true = {title(G_true, n) for n in G_true.nodes}
-    precision = len(nodes_G & nodes_G_true) / len(nodes_G)
-    recall = len(nodes_G & nodes_G_true) / len(nodes_G_true)
-    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
-    return precision, recall, f1
+    return (
+        precision_continuous,
+        recall_continuous,
+        f1_continuous,
+        precision_fuzzy,
+        recall_fuzzy,
+        f1_fuzzy,
+    )
 
 
-def edge_prec_recall_f1(G_pred: nx.Graph, G_true: nx.Graph):
+def literal_prec_recall_f1(G_pred: nx.Graph, G_true: nx.Graph):
     if len(G_pred) == 0 or len(G_true) == 0:
         return 0, 0, 0
 
@@ -284,3 +205,33 @@ def edge_prec_recall_f1(G_pred: nx.Graph, G_true: nx.Graph):
     recall = len(edges_G & edges_G_true) / len(edges_G_true)
     f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
     return precision, recall, f1
+
+
+def motif_distance(G_pred: nx.Graph, G_true: nx.Graph, n: int = 3):
+    motifs_pred, counts_pred = gt.motifs(nx_to_gt(G_pred)[0], n)  # type: ignore
+    motifs_true, counts_true = gt.motifs(nx_to_gt(G_true)[0], n)  # type: ignore
+
+    all_motifs = motifs_pred[::]
+    for motif in motifs_true:
+        for existing_motif in all_motifs:
+            if gt.isomorphism(motif, existing_motif):
+                break
+        else:
+            all_motifs.append(motif)
+    all_counts_pred = np.zeros(len(all_motifs))
+    all_counts_true = np.zeros(len(all_motifs))
+    for i, motif in enumerate(motifs_pred):
+        for j, existing_motif in enumerate(all_motifs):
+            if gt.isomorphism(motif, existing_motif):
+                all_counts_pred[j] = counts_pred[i]
+                break
+    for i, motif in enumerate(motifs_true):
+        for j, existing_motif in enumerate(all_motifs):
+            if gt.isomorphism(motif, existing_motif):
+                all_counts_true[j] = counts_true[i]
+                break
+    all_counts_pred /= all_counts_pred.sum()
+    all_counts_true /= all_counts_true.sum()
+
+    wass = np.sum(np.abs(all_counts_true - all_counts_pred)) / 2
+    return wass
