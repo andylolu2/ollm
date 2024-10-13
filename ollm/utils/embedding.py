@@ -19,7 +19,7 @@ def load_embedding_model(name: str = "sentence-transformers/all-MiniLM-L6-v2"):
 def embed(text: str | list[str], model, tokenizer, variant: str = "mean"):
     is_single = isinstance(text, str)
     if is_single:
-        text = [text]
+        text = [text]  # type: ignore
 
     inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True).to(
         device

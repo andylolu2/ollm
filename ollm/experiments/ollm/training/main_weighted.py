@@ -53,7 +53,7 @@ class Trainer(SFTTrainer):
         append_concat_token=True,
         add_special_tokens=True,
     ):
-        edge_counts = defaultdict(int)
+        edge_counts: defaultdict[tuple, int] = defaultdict(int)
         for example in dataset:
             for path in example["paths"]:  # type: ignore
                 for u, v in zip(path[:-1], path[1:]):
@@ -90,7 +90,7 @@ class Trainer(SFTTrainer):
             ignores_detailed = [True] * resp_start_idx
 
             prev_word = None
-            word_ids = []
+            word_ids: list[int] = []
             for token_id in input_ids[resp_start_idx:]:
                 if token_id == arrow or token_id == linebreak:
                     word = tokenizer.decode(word_ids)

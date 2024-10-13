@@ -2,7 +2,7 @@
 authors = [{ name = "Andy Lo", email = "andylolu24@gmail.com" }]
 description = "Add a short description here"
 name = "ollm"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 version = "0.1.0"
 dependencies = [
     "arxiv-base",
@@ -32,19 +32,17 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [tool.pixi.project]
-channels = ["conda-forge", "pytorch", "nvidia", "pyg"]
+channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tool.pixi.pypi-dependencies]
 ollm = { path = ".", editable = true }
 
-[tool.pixi.tasks]
-
 [tool.pixi.dependencies]
-python = "3.10.*"
+python = "3.11.*"
 uwsgi = "*"
 graph-tool = "*"
-numba = "*"
 
 [tool.mypy]
 ignore_missing_imports = true
+allow_redefinition = true
