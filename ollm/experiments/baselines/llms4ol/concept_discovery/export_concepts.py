@@ -31,7 +31,9 @@ def main(_):
     for item in results:
         for concept in parse_concepts(item["concepts"]):
             concepts[concept] += 1
-    logging.info("Found %d unique concepts", len(concepts))
+    logging.info(
+        "Found %d unique concepts, exporting %d of them", len(concepts), FLAGS.top_k
+    )
 
     top_concepts = dict(concepts.most_common(FLAGS.top_k))
     with open(out_dir / "concepts.json", "w") as f:

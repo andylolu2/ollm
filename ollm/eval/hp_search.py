@@ -23,7 +23,6 @@ flags.DEFINE_string(
 )
 flags.DEFINE_integer("num_samples", 11, "Number of thresholds to evaluate.")
 flags.DEFINE_string("output_dir", None, "Path to the output directory", required=True)
-flags.DEFINE_bool("ignore_root", False, "Ignore the root node of `graph`.")
 
 
 def main(_):
@@ -33,9 +32,6 @@ def main(_):
 
     G = data_model.load_graph(FLAGS.graph)
     G_true = data_model.load_graph(FLAGS.graph_true)
-
-    if FLAGS.ignore_root:
-        G.graph.pop("root", None)
 
     absolute_percentiles = 1 - np.geomspace(
         1 / G.number_of_edges(), 1, FLAGS.num_samples

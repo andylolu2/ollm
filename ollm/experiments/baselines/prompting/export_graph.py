@@ -78,7 +78,6 @@ def main(_):
     logging.info("Total of %s relations", len(hypernyms))
 
     G = nx.DiGraph()
-    G.graph["root"] = "Main topic classifications"
     for (parent, child), count in hypernyms.items():
         G.add_node(parent, title=parent)
         G.add_node(child, title=child)

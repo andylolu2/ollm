@@ -4,7 +4,7 @@ from pathlib import Path
 import networkx as nx
 from absl import app, flags, logging
 
-from ollm.dataset.data_model import load_graph
+from ollm.dataset.data_model import load_graph, save_graph
 from ollm.eval.graph_metrics import (
     fuzzy_and_continuous_precision_recall_f1,
     graph_precision_recall_f1,
@@ -120,6 +120,11 @@ def main(_):
 
     with open(output_file, "w") as f:
         json.dump(metrics, f, indent=2)
+
+    # Drop embeddings
+    for node in G.nodes:
+        G.nodes[node].pop("embed")
+    save_graph(G, output_file.parent / "graph_final.json")
 
 
 if __name__ == "__main__":

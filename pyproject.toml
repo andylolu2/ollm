@@ -19,12 +19,13 @@ dependencies = [
     "datasets",
     "tensorboardx",
     "wandb",
-    "torch",
+    "torch>=2.2",
     "ruff",
     "mypy",
     "python-dotenv",
-    "vllm",
     "evaluate",
+    "scikit-learn",
+    "vllm>=0.3",
 ]
 
 [build-system]
@@ -42,6 +43,7 @@ ollm = { path = ".", editable = true }
 python = "3.11.*"
 uwsgi = "*"
 graph-tool = "*"
+numba = "*"
 
 [tool.mypy]
 ignore_missing_imports = true

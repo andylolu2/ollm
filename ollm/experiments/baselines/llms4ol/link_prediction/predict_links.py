@@ -16,8 +16,7 @@ flags.DEFINE_string("output_dir", None, "Path to the output directory", required
 flags.DEFINE_string(
     "concepts_file", None, "Path to the graph to predict", required=True
 )
-flags.DEFINE_string("model_path", None, "Path to the model checkpoint", required=True)
-flags.DEFINE_string("root", "Main topic classifications", "Root node of the graph")
+flags.DEFINE_string("model", None, "Path to the model checkpoint", required=True)
 flags.DEFINE_float("factor", 10, "Ratio of number of edges to keep vs nodes")
 
 
@@ -27,15 +26,12 @@ def main(_):
     setup_logging(output_dir, "inference", flags=FLAGS)
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        FLAGS.model_path, num_labels=2, device_map="cuda", torch_dtype=torch.bfloat16
+        FLAGS.model, num_labels=2, device_map="cuda", torch_dtype=torch.bfloat16
     )
-    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model)
 
     with open(FLAGS.concepts_file, "r") as f:
         node_names = list(json.load(f).keys())
-
-    if FLAGS.root not in node_names:
-        node_names.append(FLAGS.root)
 
     weights = []
     for uv_batch in batch(
@@ -51,20 +47,6 @@ def main(_):
     weights = torch.cat(weights).reshape(len(node_names), len(node_names))
     weights = weights.float().cpu().numpy()
 
-    # Export full graph
-    G = nx.DiGraph()
-    for name in node_names:
-        G.add_node(name, title=name)
-    for i, j in product(range(len(node_names)), repeat=2):
-        G.add_edge(node_names[i], node_names[j], weight=float(weights[i, j]))
-    G.graph["root"] = FLAGS.root
-    logging.info(
-        "Extracted %d nodes and %d edges",
-        G.number_of_nodes(),
-        G.number_of_edges(),
-    )
-    data_model.save_graph(G, Path(FLAGS.output_dir) / "graph.json")
-
     # Export pruned graph
     n_edges = int(len(node_names) * FLAGS.factor)
     top_idx = np.unravel_index(
@@ -76,13 +58,12 @@ def main(_):
         G.add_node(name, title=name)
     for i, j in zip(*top_idx):
         G.add_edge(node_names[i], node_names[j], weight=float(weights[i, j]))
-    G.graph["root"] = FLAGS.root
     logging.info(
         "Extracted %d nodes and %d edges",
         G.number_of_nodes(),
         G.number_of_edges(),
     )
-    data_model.save_graph(G, Path(FLAGS.output_dir) / "graph_pruned.json")
+    data_model.save_graph(G, Path(FLAGS.output_dir) / "graph.json")
 
 
 if __name__ == "__main__":

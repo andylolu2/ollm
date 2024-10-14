@@ -20,33 +20,7 @@ ID: TypeAlias = int
 # }
 
 
-def clean_up_graph(G: nx.Graph):
-    # Remove nodes not reachable from the root.
-    nodes_to_keep = nx.descendants(G, G.graph["root"]) | {G.graph["root"]}
-    logging.info(
-        "Removing %d nodes not reachable from the root", len(G) - len(nodes_to_keep)
-    )
-    G = G.subgraph(nodes_to_keep)
-
-    # Remove nodes with no pages or descendants that have pages.
-    nodes_with_pages = set(n for n, pages in G.nodes(data="pages") if len(pages) > 0)  # type: ignore
-    nodes_to_keep = set(
-        nx.multi_source_dijkstra_path_length(
-            G.reverse() if isinstance(G, nx.DiGraph) else G, nodes_with_pages
-        ).keys()
-    )
-    logging.info(
-        "Removing %d nodes with no pages or descendants that have pages",
-        len(G) - len(nodes_to_keep),
-    )
-    G = G.subgraph(nodes_to_keep)
-
-    return G.copy()
-
-
-def save_graph(
-    G: nx.Graph, save_file: Path | str, depth: int | None = None, clean_up: bool = False
-):
+def save_graph(G: nx.Graph, save_file: Path | str, depth: int | None = None):
     """Save graph to file.
 
     Args:
@@ -56,16 +30,13 @@ def save_graph(
             Requires the graph to have a "root" graph attribute. Defaults to None.
     """
     save_file = Path(save_file)
-    assert "root" in G.graph
     assert save_file.suffix == ".json"
 
     save_file.parent.mkdir(parents=True, exist_ok=True)
 
     if depth is not None and depth > 0:
+        assert "root" in G.graph
         G = nx.ego_graph(G, G.graph["root"], radius=depth)
-
-    if clean_up:
-        G = clean_up_graph(G)
 
     logging.info(
         "Saving graph with %d nodes and %d edges to %s",
@@ -92,8 +63,8 @@ def load_graph(save_file: Path | str, depth: int | None = None) -> nx.DiGraph:
     with open(save_file, "r") as f:
         G = nx.node_link_graph(json.load(f), edges="links")
 
-    assert "root" in G.graph
     if depth is not None and depth > 0:
+        assert "root" in G.graph
         G = nx.ego_graph(G, G.graph["root"], radius=depth)
 
     return G

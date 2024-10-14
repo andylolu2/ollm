@@ -46,7 +46,6 @@ def main(_):
     # Use the ground truth graph to get the true concepts
     G_true = data_model.load_graph(FLAGS.graph_true)
     true_concepts = set(G_true.nodes[n]["title"] for n in G_true.nodes)
-    root_concept = G_true.nodes[G_true.graph["root"]]["title"]
 
     concepts = set()
     for parent, child in matches:
@@ -81,7 +80,6 @@ def main(_):
             tail = tails[idx]
             weight = weights[idx]
             G.add_edge(head, tail, weight=weight)
-        G.graph["root"] = root_concept
 
         logging.info(
             "Extracted %d nodes and %d edges", G.number_of_nodes(), G.number_of_edges()

@@ -27,7 +27,7 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "eval_graph", None, "Path to the evaluation graph file", required=True
 )
-flags.DEFINE_string("model_id", "bert-base-uncased", "Model ID to use for training")
+flags.DEFINE_string("model", "bert-base-uncased", "Model ID to use for training")
 flags.DEFINE_integer("logging_steps", 100, "Logging steps for the trainer")
 flags.DEFINE_integer("save_eval_steps", 500, "Evaluation steps for the trainer")
 
@@ -35,22 +35,14 @@ flags.DEFINE_integer("save_eval_steps", 500, "Evaluation steps for the trainer")
 def main(_):
     output_dir = Path(FLAGS.output_dir)
     setup_logging(output_dir, "train", flags=FLAGS)
+    random.seed(0)
 
-    accuracy = evaluate.load("accuracy")
-    precision = evaluate.load("precision")
-    recall = evaluate.load("recall")
-    f1 = evaluate.load("f1")
+    metrics = evaluate.combine(["accuracy", "precision", "recall", "f1"])
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
-        acc = accuracy.compute(predictions=predictions, references=labels)["accuracy"]
-        prec = precision.compute(predictions=predictions, references=labels)[
-            "precision"
-        ]
-        rec = recall.compute(predictions=predictions, references=labels)["recall"]
-        f1_score = f1.compute(predictions=predictions, references=labels)["f1"]
-        return {"accuracy": acc, "precision": prec, "recall": rec, "f1": f1_score}
+        return metrics.compute(predictions=predictions, references=labels)
 
     def build_dataset(G: nx.DiGraph, tokenizer) -> Dataset:
         def title(node):
@@ -86,9 +78,9 @@ def main(_):
         return ds.map(preprocess)
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        FLAGS.model_id, num_labels=2, device_map="cuda", torch_dtype=torch.bfloat16
+        FLAGS.model, num_labels=2, device_map="cuda", torch_dtype=torch.bfloat16
     )
-    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model_id)
+    tokenizer = AutoTokenizer.from_pretrained(FLAGS.model)
 
     G_train = data_model.load_graph(FLAGS.train_graph)
     G_eval = data_model.load_graph(FLAGS.eval_graph)
