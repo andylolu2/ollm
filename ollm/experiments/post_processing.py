@@ -89,4 +89,15 @@ def post_process(G: nx.DiGraph, hp: PostProcessHP) -> tuple[nx.DiGraph, int]:
     # This also removes nodes with no incoming/outgoing edges
     G = nx.edge_subgraph(G, G.edges - edges_to_remove)
 
+    # Add the root node if it doesn't exist (helps for baselines)
+    if "root" not in G.graph or G.graph["root"] not in G:
+        root = "Main topic classifications"
+        G = G.copy()  # type: ignore
+        G.add_node(root, title=root)
+        G.graph["root"] = root
+        # Add edges from the root to all other nodes with no incoming edges
+        for node in G.nodes:
+            if G.in_degree(node) == 0 and node != root:
+                G.add_edge(root, node, weight=1)
+
     return G, len(edges_to_remove)

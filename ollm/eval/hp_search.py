@@ -27,8 +27,11 @@ flags.DEFINE_string("output_dir", None, "Path to the output directory", required
 
 def main(_):
     out_dir = Path(FLAGS.output_dir)
-    out_file = out_dir / "hp_search.jsonl"
     setup_logging(out_dir, "hp_search", flags=FLAGS)
+
+    out_file = out_dir / "hp_search.jsonl"
+    if out_file.exists():
+        out_file.unlink()
 
     G = data_model.load_graph(FLAGS.graph)
     G_true = data_model.load_graph(FLAGS.graph_true)
