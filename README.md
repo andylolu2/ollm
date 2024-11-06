@@ -1,6 +1,6 @@
 # OLLM
 
-This is the source code for [End-to-End Ontology Learning with Large Language Models](TODO), NeurIPS 2024.
+This is the source code for [End-to-End Ontology Learning with Large Language Models](https://arxiv.org/abs/2410.23584), NeurIPS 2024.
 
 ![Overview](./assets/main_figure.png)
 
